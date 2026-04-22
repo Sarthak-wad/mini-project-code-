@@ -1,0 +1,184 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#define DAYS 5
+#define SLOTS 6
+#define MAX_SUB 10
+
+// ANSI Colors
+#define RESET "\x1b[0m"
+#define RED "\x1b[31m"
+#define GREEN "\x1b[32m"
+#define CYAN "\x1b[36m"
+#define YELLOW "\x1b[33m"
+
+struct Subject {
+    char name[30];
+    char faculty[30];
+    int weeklyHours;
+    int assignedA;
+    int assignedB;
+};
+
+void displayFullTimetable(int table[DAYS][SLOTS], struct Subject sub[], char div[]) {
+    char *days[DAYS]={"Mon","Tue","Wed","Thu","Fri"};
+
+    printf(CYAN "\n\n===== FULL TIME TABLE DIV %s =====\n\n" RESET, div);
+
+    printf(YELLOW "%-8s", "Day");
+    for(int j=0;j<SLOTS;j++)
+        printf("L%-7d", j+1);
+    printf("\n" RESET);
+
+    for(int i=0;i<DAYS;i++) {
+        printf(GREEN "%-8s" RESET, days[i]);
+
+        for(int j=0;j<SLOTS;j++) {
+            if(table[i][j] == -1)
+                printf(RED "%-8s" RESET, "BREAK");
+            else
+                printf("%-8s", sub[table[i][j]].name);
+        }
+        printf("\n");
+    }
+}
+
+void displaySubjectTimetable(int A[DAYS][SLOTS], int B[DAYS][SLOTS], struct Subject sub[], int n) {
+    char subjectName[30];
+    char *days[DAYS]={"Mon","Tue","Wed","Thu","Fri"};
+
+    printf("\nEnter subject name: ");
+    scanf(" %[^\n]", subjectName);
+
+    int found=-1;
+    for(int i=0;i<n;i++) {
+        if(strcmp(subjectName, sub[i].name)==0) {
+            found=i;
+            break;
+        }
+    }
+
+    if(found==-1) {
+        printf("Subject not found!\n");
+        return;
+    }
+
+    printf(CYAN "\nTimetable for %s\n" RESET, sub[found].name);
+
+    printf("\nDivision A:\n");
+    for(int i=0;i<DAYS;i++) {
+        printf("%s: ", days[i]);
+        for(int j=0;j<SLOTS;j++) {
+            if(A[i][j]==found)
+                printf("L%d ", j+1);
+        }
+        printf("\n");
+    }
+
+    printf("\nDivision B:\n");
+    for(int i=0;i<DAYS;i++) {
+        printf("%s: ", days[i]);
+        for(int j=0;j<SLOTS;j++) {
+            if(B[i][j]==found)
+                printf("L%d ", j+1);
+        }
+        printf("\n");
+    }
+}
+
+void displayWorkload(struct Subject sub[], int n) {
+    printf(CYAN "\nFaculty Workload:\n" RESET);
+    for(int i=0;i<n;i++) {
+        printf("%s (%s) -> DivA: %d  DivB: %d\n",
+               sub[i].name,
+               sub[i].faculty,
+               sub[i].assignedA,
+               sub[i].assignedB);
+    }
+}
+
+int main() {
+    struct Subject sub[MAX_SUB];
+    int A[DAYS][SLOTS], B[DAYS][SLOTS];
+    int n, choice;
+
+    printf("Enter number of subjects: ");
+    scanf("%d",&n);
+
+    for(int i=0;i<n;i++) {
+        printf("\nSubject %d name: ",i+1);
+        scanf(" %[^\n]",sub[i].name);
+
+        printf("Faculty: ");
+        scanf(" %[^\n]",sub[i].faculty);
+
+        printf("Lectures per week (per division): ");
+        scanf("%d",&sub[i].weeklyHours);
+
+        sub[i].assignedA=0;
+        sub[i].assignedB=0;
+    }
+
+    srand(time(NULL));
+
+    // Timetable generation with faculty clash check
+    for(int i=0;i<DAYS;i++) {
+        for(int j=0;j<SLOTS;j++) {
+
+            if(j==3) {
+                A[i][j]=B[i][j]=-1;
+                continue;
+            }
+
+            int idx, attempts=0;
+
+            // Division A
+            do {
+                idx = rand()%n;
+                attempts++;
+            } while((sub[idx].assignedA>=sub[idx].weeklyHours ||
+                    (j>0 && A[i][j-1]==idx)) && attempts<100);
+
+            A[i][j]=idx;
+            sub[idx].assignedA++;
+
+            // Division B with faculty clash avoidance
+            int idxB; attempts=0;
+            do {
+                idxB = rand()%n;
+                attempts++;
+            } while((idxB==idx ||                                  // subject clash
+                    strcmp(sub[idxB].faculty, sub[idx].faculty)==0 || // faculty clash
+                    sub[idxB].assignedB>=sub[idxB].weeklyHours ||
+                    (j>0 && B[i][j-1]==idxB)) && attempts<100);
+
+            B[i][j]=idxB;
+            sub[idxB].assignedB++;
+        }
+    }
+
+    do {
+        printf(YELLOW "\n\n===== MENU =====\n" RESET);
+        printf("1. View Division A Timetable\n");
+        printf("2. View Division B Timetable\n");
+        printf("3. View Subject Timetable (A & B)\n");
+        printf("4. View Faculty Workload\n");
+        printf("5. Exit\n");
+        printf("Enter choice: ");
+        scanf("%d",&choice);
+
+        switch(choice) {
+            case 1: displayFullTimetable(A,sub,"A"); break;
+            case 2: displayFullTimetable(B,sub,"B"); break;
+            case 3: displaySubjectTimetable(A,B,sub,n); break;
+            case 4: displayWorkload(sub,n); break;
+            case 5: printf("Exiting...\n"); break;
+            default: printf("Invalid choice!\n");
+        }
+
+    } while(choice!=5);
+
+    return 0;
+}
